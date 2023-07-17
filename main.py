@@ -179,7 +179,7 @@ async def new_sticker_attachment(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await update.message.reply_text("error")
     return 'change_emoji'
-
+#11
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("bye",
                                     reply_markup = ReplyKeyboardRemove())
