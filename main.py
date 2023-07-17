@@ -313,7 +313,7 @@ if __name__ == '__main__':
     set_thumbnail_handler = MessageHandler(filters.ATTACHMENT, set_thumbnail)
         # new name
     new_pack_title_handler = MessageHandler(filters.Text([ACTIONS["title"]]), new_pack_title)
-    set_new_pack_title_handler = MessageHandler(filters.TEXT, set_new_pack_title)
+    set_new_pack_title_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, set_new_pack_title)
         # delete sticker
     delete_sticker_handler = MessageHandler(filters.Text([ACTIONS["delete sticker"]]), delete_sticker)
     pick_delete_sticker_handler = MessageHandler(filters.Sticker.ALL, pick_delete_sticker)
