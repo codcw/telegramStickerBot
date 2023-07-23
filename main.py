@@ -1,7 +1,11 @@
 import logging, io, pickle, pathlib, requests, json, emoji
 import os.path
-
+import flask
 import telegram.constants
+import threading
+from urllib.request import urlopen
+from flask import Flask, request
+from flask_cors import CORS
 from telegram import    Update,\
                         InlineKeyboardButton,\
                         InlineKeyboardMarkup,\
@@ -14,7 +18,8 @@ from telegram.ext import    filters,\
                             CommandHandler,\
                             ContextTypes,\
                             ConversationHandler,\
-                            CallbackQueryHandler
+                            CallbackQueryHandler,\
+                            TypeHandler
 from telegram.ext.filters import MessageFilter
 from PIL import Image
 import sys
@@ -32,6 +37,12 @@ else:
         stickerpacks = dict()
         pickle.dump(stickerpacks, packs)
 
+if pathlib.Path('IDs').exists():
+    with open('IDs', 'rb') as file:
+        IDs = pickle.load(file)
+else:
+    IDs = False
+
 ACTIONS = {"thumbnail" : "Change thumbnail",
            "delete sticker" : "Delete sticker",
            "add sticker" : "Add sticker",
@@ -39,6 +50,12 @@ ACTIONS = {"thumbnail" : "Change thumbnail",
            "emoji": "Change sticker emoji list"}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global IDs
+    if IDs == False:
+        with open('IDs', 'wb') as file:
+            IDs = { "user_id": update.effective_user.id,
+                    "chat_id": update.effective_chat.id}
+            pickle.dump(IDs, file)
     if stickerpacks:
         keyboard = [    [InlineKeyboardButton(f"{packname}", callback_data = packname)]
                         for packname in stickerpacks.keys()]
@@ -85,7 +102,7 @@ async def newsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                     reply_markup = ReplyKeyboardRemove())
     return 'new_sticker_methods'
 
-async def add_sticker(image: bytes, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+async def add_sticker(image: bytes, update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     #process the image and add to sticker set
     image = Image.open(image)
     image = image.crop(image.getbbox())  # trim transparent pixels
@@ -107,14 +124,14 @@ async def add_sticker(image: bytes, update: Update, context: ContextTypes.DEFAUL
                                           emoji_list=["😢", "😥"])
     successful = True
     user_id = update.effective_user.id
-    current_pack_name = context.user_data["current_pack_name"]
+    current_pack_name = context.user_data["current_pack_name"] #pack name
     insertion = await context.bot.add_sticker_to_set(user_id=user_id,
                                                      name=current_pack_name,
                                                      sticker=input_sticker)
     if insertion is successful:
         current_stickerset = await context.bot.get_sticker_set(current_pack_name)
         sticker_id = current_stickerset.stickers[-1].file_id
-        context.user_data['sticker_id'] = sticker_id
+        # context.user_data['sticker_id'] = sticker_id
         await context.bot.send_sticker(chat_id=update.effective_chat.id,
                                        sticker=sticker_id)
         return True
@@ -179,7 +196,7 @@ async def new_sticker_attachment(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await update.message.reply_text("error")
     return 'change_emoji'
-#11
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("bye",
                                     reply_markup = ReplyKeyboardRemove())
@@ -283,6 +300,60 @@ async def set_thumbnail(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Error")
     return ConversationHandler.END
 
+# FLASK SECTION
+
+app = Flask(__name__)
+CORS(app)
+app.secret_key = "supa secret"
+
+class Chat:
+    def __init__(self, chat_id):
+        self.id = chat_id
+
+class User:
+    def __init__(self, user_id):
+        self.id = user_id
+
+class FlaskUpdate:
+    def __init__(self, chat_id, user_id, packname, packtitle, pic):
+        self.effective_chat = Chat(chat_id)
+        self.effective_user = User(user_id)
+        self.packname = packname
+        self.packtitle = packtitle
+        self.pic = pic
+
+@app.route('/')
+def index():
+    defaultpage = "<p>Hello</p>"
+    return defaultpage
+
+@app.route('/getPacks', methods=["GET"])
+def getPacks():
+    return stickerpacks
+
+@app.route('/updateFromExtension', methods=["POST"])
+async def updateFromExtension():
+    request_data = request.get_json()
+    packtitle = request_data["packname"]
+    packname = request_data["packtitle"] #fix title and name discrepancy
+    pic = request_data["pic"]
+    print(packname, packtitle, pic)
+    ExtensionUpdate = FlaskUpdate(chat_id = IDs["chat_id"],
+                                  user_id = IDs["user_id"],
+                                  packtitle = packtitle,
+                                  packname = packname,
+                                  pic = pic)
+    await application.update_queue.put(ExtensionUpdate)
+    return "True"
+
+async def addFromExtension(update, context: ContextTypes.DEFAULT_TYPE):
+    print(context.bot)
+    context.user_data["current_pack_title"] = update.packtitle
+    context.user_data["current_pack_name"] = update.packname
+    # with urlopen(data_uri) as response:
+    #     data = response.read()
+    pass
+
 if __name__ == '__main__':
 
     with open("token.txt", "r") as file:
@@ -339,6 +410,14 @@ if __name__ == '__main__':
     )
     application.add_handler(conv_handler)
     application.add_handler(newpack_handler)
+
+    # extension
+    def flaskthread():
+        app.run()
+    t = threading.Thread(target=flaskthread)
+    t.start()
+    extension_handler = TypeHandler(FlaskUpdate, addFromExtension)
+    application.add_handler(extension_handler)
 
     # Other handlers
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
