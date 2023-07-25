@@ -347,12 +347,46 @@ async def updateFromExtension():
     return "True"
 
 async def addFromExtension(update, context: ContextTypes.DEFAULT_TYPE):
-    print(context.bot)
-    context.user_data["current_pack_title"] = update.packtitle
-    context.user_data["current_pack_name"] = update.packname
-    # with urlopen(data_uri) as response:
-    #     data = response.read()
-    pass
+    current_image = update.pic
+    if current_image.startswith("data:image"):
+        with urlopen(current_image) as response:
+            current_image = response.read()
+    else:
+        current_image = requests.get(current_image).content
+    image = io.BytesIO(current_image)
+    image = Image.open(image)
+    image = image.crop(image.getbbox())  # trim transparent pixels
+    width, height = image.size
+    if width > height:
+        ratio = height / width
+        width = 512
+        height = int(512 * ratio)
+    elif width < height:
+        ratio = width / height
+        height = 512
+        width = int(512 * ratio)
+    else:
+        width = height = 512
+    image = image.resize((width, height))
+    image_io = io.BytesIO()
+    image.save(image_io, "PNG")
+    input_sticker = telegram.InputSticker(sticker=image_io.getvalue(),
+                                          emoji_list=["😢", "😥"])
+    successful = True
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    current_pack_name = update.packname
+    insertion = await context.bot.add_sticker_to_set(user_id=user_id,
+                                                     name=current_pack_name,
+                                                     sticker=input_sticker)
+    if insertion is successful:
+        current_stickerset = await context.bot.get_sticker_set(current_pack_name)
+        sticker_id = current_stickerset.stickers[-1].file_id
+        await context.bot.send_sticker(chat_id=update.effective_chat.id,
+                                       sticker=sticker_id)
+    else:
+        await context.bot.send_message(chat_id=chat_id,
+                                       text="Error while adding sticker from extension")
 
 if __name__ == '__main__':
 
