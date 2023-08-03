@@ -1,6 +1,6 @@
 chrome.runtime.onInstalled.addListener(function () {
 	chrome.contextMenus.create({
-		title: "this should appear on images",
+		title: "Add as sticker",
 	    contexts: ["image"],
 	    id: "EmoteMenu"
 	});
