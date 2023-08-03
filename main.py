@@ -56,15 +56,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             IDs = { "user_id": update.effective_user.id,
                     "chat_id": update.effective_chat.id}
             pickle.dump(IDs, file)
+    keyboard = []
     if stickerpacks:
-        keyboard = [    [InlineKeyboardButton(f"{packname}", callback_data = packname)]
-                        for packname in stickerpacks.keys()]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text("Please choose:", reply_markup = reply_markup)
-        return 'get_pack'
-    else:
-        await update.message.reply_text("No stickerpacks have been created yet! Use /newpack instead")
-        return ConversationHandler.END
+        for packname in stickerpacks.keys():
+            keyboard.append([InlineKeyboardButton(f"{packname}", callback_data = packname)])
+    keyboard.append([InlineKeyboardButton("Create new", callback_data = 'makenew')])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Please choose:", reply_markup = reply_markup)
+    return 'pack_select'
 
 def build_keyboard(actions, columns = 2, row_character_limit = 35):
     row_length = 0
@@ -77,10 +76,20 @@ def build_keyboard(actions, columns = 2, row_character_limit = 35):
             keyboard.append([])
     return keyboard
 
-async def get_pack(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def pack_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     stickerpack_data = query.data
+    if stickerpack_data == 'makenew':
+        await context.bot.send_message( chat_id = update.effective_chat.id,
+                                        text = "Send title for new sticker pack",
+                                        reply_markup=ReplyKeyboardRemove())
+        return 'newpack'
+    else:
+        await get_pack(update, context, stickerpack_data)
+
+
+async def get_pack(update: Update, context: ContextTypes.DEFAULT_TYPE, stickerpack_data):
     if stickerpack_data:
         reply_keyboard = build_keyboard(ACTIONS.values())
         markup = ReplyKeyboardMarkup(keyboard = reply_keyboard,
@@ -210,8 +219,9 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def newpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     bot_name = context.bot.username
-    pack_title = context.args[0]
-    pack_name = f'{pack_title}_by_{bot_name}'
+    pack_title = update.message.text
+    nospace_title = '_'.join(pack_title.split())
+    pack_name = f'{nospace_title}_by_{bot_name}'
     sticker_format = telegram.constants.StickerFormat.STATIC
     default_sticker = open("saj512.png", "rb")
     default_input_sticker = telegram.InputSticker(sticker = default_sticker,
@@ -227,8 +237,11 @@ async def newpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
             stickerpacks[pack_title] = pack_name
             pickle.dump(stickerpacks, packs)
         await update.message.reply_text(f"Pack {pack_title} created")
+        return 'processing'
     else:
         await update.message.reply_text("Error")
+
+    return ConversationHandler.END
 
 async def new_pack_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Send new sticker pack title",
@@ -402,10 +415,10 @@ if __name__ == '__main__':
         mytoken = file.read()
     application = ApplicationBuilder().token(mytoken).build()
     # HANDLERS
-        # /newpack
-    newpack_handler = CommandHandler('newpack', newpack)
 
     # CONVERSATION HANDLERS
+        # newpack
+    newpack_handler = MessageHandler(filters.TEXT, newpack)
         # choosing pack
     start_handler = CommandHandler('start', start)
         # get_pack
@@ -434,6 +447,9 @@ if __name__ == '__main__':
     change_emoji_handler = MessageHandler(filters.TEXT, change_emoji)
     emoji_sticker_handler = MessageHandler(filters.Sticker.ALL, emoji_for_sticker)
     sticker_emoji_handler = MessageHandler(filters.Text([ACTIONS["emoji"]]), sticker_for_emoji)
+        # packselect(callback query)
+    pack_select_handler = CallbackQueryHandler(pack_select)
+
     #  conversation
     conv_handler = ConversationHandler(
         entry_points=[start_handler],
@@ -446,6 +462,8 @@ if __name__ == '__main__':
             'pick_delete_sticker': [pick_delete_sticker_handler],
             'change_emoji': [change_emoji_handler],
             'emoji_for_sticker': [emoji_sticker_handler],
+            'newpack': [newpack_handler],
+            'pack_select': [pack_select_handler]
         },
         fallbacks=[cancel_handler],
         name="my_conversation"
