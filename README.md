@@ -4,18 +4,10 @@ Simple bot interface for managing static stickers.
 
 Dependencies:
   - [**Python 3**](https://www.python.org/downloads/)
-  - **python-telegram-bot**:
+  - **Run in cmd, opened in project folder**:
       ```
-      pip install python-telegram-bot
-      ```
-  - **PIL**:
-      ```
-      pip install Pillow
-      ```
-  - **emoji**:
-      ```
-      pip install emoji
-      ```
-Put your bot token into token.txt, then run main.py.
+      pip install -r requirements.txt
+      
+Put your bot token(obtained through BotFather) into token.txt, then run main.py.
 Optionally, customize bot menu by adding /start and /cancel commands via BotFather.
 /start starts the conversation, /cancel cancels it.
