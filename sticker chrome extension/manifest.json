@@ -1,0 +1,17 @@
+{
+    "name": "TgEmote",
+    "version": "1",
+    "description": "Sends image data to telegram bot",
+    "manifest_version": 3,
+    "permissions": [
+        "contextMenus",
+        "storage"
+    ],
+    "background": {
+        "service_worker": "worker.js"
+    },
+    "action":{
+        "default_popup": "index.html",
+        "default_title": "xqcl"
+    }
+}

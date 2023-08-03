@@ -1,0 +1,48 @@
+img {
+    max-width: 256px;
+    max-height: 256px;
+}
+.button {
+    background-color: lightcoral;
+    color: black;
+    text-shadow: antiquewhite 1px 1px 2px;
+    font-weight: bold;
+    padding: 5px 5px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    float: right;
+    margin: 5px 0;
+    width: 100%;
+}
+body {
+    width: 256px;
+    font-size: 6vw;
+}
+.col-25 {
+    float: left;
+    width: 25%;
+    margin-top: 5px;
+}
+
+.col-75 {
+    float: right;
+    width: 75%;
+    margin-top: 5px;
+}
+.container {
+    border-radius: 5px;
+    background-color: #f2f2f2;
+    padding: 5px 0;
+}
+.row::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+.packselect {
+    font-size: 5.5vw;
+}
+.emojifield {
+    outline: 2px solid black;
+}
