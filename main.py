@@ -131,7 +131,7 @@ async def add_sticker(image: bytes, update, context: ContextTypes.DEFAULT_TYPE) 
     if insertion is successful:
         current_stickerset = await context.bot.get_sticker_set(current_pack_name)
         sticker_id = current_stickerset.stickers[-1].file_id
-        # context.user_data['sticker_id'] = sticker_id
+        context.user_data['sticker_id'] = sticker_id
         await context.bot.send_sticker(chat_id=update.effective_chat.id,
                                        sticker=sticker_id)
         return True
@@ -180,7 +180,7 @@ async def emoji_for_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def change_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE):
     emojis = emoji.distinct_emoji_list(update.message.text)
     await context.bot.set_sticker_emoji_list(sticker = context.user_data['sticker_id'],
-                                       emoji_list = emojis)
+                                             emoji_list = emojis)
     await update.message.reply_text("epic")
     return ConversationHandler.END
 
@@ -315,12 +315,13 @@ class User:
         self.id = user_id
 
 class FlaskUpdate:
-    def __init__(self, chat_id, user_id, packname, packtitle, pic):
+    def __init__(self, chat_id, user_id, packname, packtitle, pic, emojis):
         self.effective_chat = Chat(chat_id)
         self.effective_user = User(user_id)
         self.packname = packname
         self.packtitle = packtitle
         self.pic = pic
+        self.emojis = emojis
 
 @app.route('/')
 def index():
@@ -337,12 +338,14 @@ async def updateFromExtension():
     packtitle = request_data["packname"]
     packname = request_data["packtitle"] #fix title and name discrepancy
     pic = request_data["pic"]
-    print(packname, packtitle, pic)
+    emojis = request_data["emojis"]
+    print(packname, packtitle, pic, emojis)
     ExtensionUpdate = FlaskUpdate(chat_id = IDs["chat_id"],
                                   user_id = IDs["user_id"],
                                   packtitle = packtitle,
                                   packname = packname,
-                                  pic = pic)
+                                  pic = pic,
+                                  emojis = emojis)
     await application.update_queue.put(ExtensionUpdate)
     return "True"
 
@@ -370,8 +373,11 @@ async def addFromExtension(update, context: ContextTypes.DEFAULT_TYPE):
     image = image.resize((width, height))
     image_io = io.BytesIO()
     image.save(image_io, "PNG")
+    current_emojis = emoji.distinct_emoji_list(update.emojis)
+    if current_emojis == []:
+        current_emojis = ["😢", "😥"]
     input_sticker = telegram.InputSticker(sticker=image_io.getvalue(),
-                                          emoji_list=["😢", "😥"])
+                                          emoji_list=current_emojis)
     successful = True
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
@@ -384,6 +390,8 @@ async def addFromExtension(update, context: ContextTypes.DEFAULT_TYPE):
         sticker_id = current_stickerset.stickers[-1].file_id
         await context.bot.send_sticker(chat_id=update.effective_chat.id,
                                        sticker=sticker_id)
+        await context.bot.send_message(chat_id=chat_id,
+                                       text=f"Added to {current_pack_name}")
     else:
         await context.bot.send_message(chat_id=chat_id,
                                        text="Error while adding sticker from extension")
