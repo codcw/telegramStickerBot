@@ -86,7 +86,7 @@ async def pack_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                         reply_markup=ReplyKeyboardRemove())
         return 'newpack'
     else:
-        await get_pack(update, context, stickerpack_data)
+        return await get_pack(update, context, stickerpack_data)
 
 
 async def get_pack(update: Update, context: ContextTypes.DEFAULT_TYPE, stickerpack_data):
