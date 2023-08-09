@@ -101,9 +101,10 @@ async def get_pack(update: Update, context: ContextTypes.DEFAULT_TYPE, stickerpa
                                         reply_markup = markup)
         context.user_data["current_pack_title"] = stickerpack_data
         context.user_data["current_pack_name"] = stickerpacks[stickerpack_data]
+        return "processing"
     else:
         await update.message.reply_text("No stickerpack data!")
-    return ConversationHandler.END
+        return ConversationHandler.END
 
 async def newsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Send new sticker as an attachment/7tv link/direct link",
