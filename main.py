@@ -11,7 +11,8 @@ from telegram import    Update,\
                         InlineKeyboardMarkup,\
                         ReplyKeyboardMarkup,\
                         ReplyKeyboardRemove,\
-                        MessageEntity
+                        MessageEntity,\
+                        error
 from telegram.ext import    filters,\
                             MessageHandler,\
                             ApplicationBuilder,\
@@ -90,6 +91,15 @@ async def pack_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def get_pack(update: Update, context: ContextTypes.DEFAULT_TYPE, stickerpack_data):
+    try:
+        await context.bot.get_sticker_set(name = stickerpacks[stickerpack_data])
+    except error.BadRequest:
+        with open('stickerpacks', 'wb') as packs:
+            del stickerpacks[stickerpack_data]
+            pickle.dump(stickerpacks, packs)
+        await context.bot.send_message(chat_id = update.effective_chat.id,
+                                        text = f"Pack {stickerpack_data} does not exist!")
+        return ConversationHandler.END
     if stickerpack_data:
         reply_keyboard = build_keyboard(ACTIONS.values())
         markup = ReplyKeyboardMarkup(keyboard = reply_keyboard,
@@ -103,7 +113,8 @@ async def get_pack(update: Update, context: ContextTypes.DEFAULT_TYPE, stickerpa
         context.user_data["current_pack_name"] = stickerpacks[stickerpack_data]
         return "processing"
     else:
-        await update.message.reply_text("No stickerpack data!")
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="No stickerpack data!")
         return ConversationHandler.END
 
 async def newsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
